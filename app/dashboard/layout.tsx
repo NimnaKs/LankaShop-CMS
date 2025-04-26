@@ -11,7 +11,9 @@ export default function DashboardLayout({
     <div className="flex min-h-screen flex-col">
       <DashboardHeader />
       <div className="flex flex-1">
-        <DashboardNav />
+        <div className="hidden md:block">
+          <DashboardNav />
+        </div>
         <main className="flex-1 p-6 md:p-8">{children}</main>
       </div>
     </div>

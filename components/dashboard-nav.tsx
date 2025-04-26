@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { BarChart3, Home, Package, ShoppingCart, Tag, Users, FolderTree, MapPin } from "lucide-react"
+import { FolderTree, Home, MapPin, Package, ShoppingCart, Tag, Users } from "lucide-react"
 
 const navItems = [
   {
@@ -41,11 +41,6 @@ const navItems = [
     title: "Orders",
     href: "/dashboard/orders",
     icon: ShoppingCart,
-  },
-  {
-    title: "Analytics",
-    href: "/dashboard/analytics",
-    icon: BarChart3,
   },
 ]
 
