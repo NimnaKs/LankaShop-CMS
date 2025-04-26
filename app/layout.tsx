@@ -8,8 +8,8 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
-  title: "Admin CMS | E-commerce",
-  description: "Admin dashboard for managing e-commerce shop",
+  title: "LankaShop Admin Panel",
+  description: "Admin dashboard for managing LankaShop e-commerce store",
     generator: 'v0.dev'
 }
 

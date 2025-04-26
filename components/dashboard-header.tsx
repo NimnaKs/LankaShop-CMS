@@ -39,7 +39,7 @@ export function DashboardHeader() {
       </Sheet>
       <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
         <Package className="h-6 w-6" />
-        <span>E-commerce Admin</span>
+        <span>LankaShop Admin Panel</span>
       </Link>
       <div className="ml-auto flex items-center gap-2">
         {user && (
