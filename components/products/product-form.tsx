@@ -156,16 +156,6 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Check file size - limit to 5MB
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "Image too large",
-        description: "Please select an image smaller than 5MB",
-        variant: "destructive",
-      })
-      return
-    }
-
     setImageFile(file)
 
     // Create a preview
@@ -296,7 +286,7 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
                   )}
                 </Button>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Image will be uploaded to S3 and a CDN URL will be saved
+                  Image will be uploaded to S3 without size constraints
                 </p>
               </div>
             </div>
