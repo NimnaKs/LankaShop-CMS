@@ -59,7 +59,8 @@
     "vaul": "^0.9.6",
     "zod": "^3.24.1",
     "firebase": "latest",
-    "uuid": "latest"
+    "uuid": "latest",
+    "@aws-sdk/client-s3": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",

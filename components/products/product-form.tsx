@@ -17,6 +17,7 @@ import { Loader2, Upload } from "lucide-react"
 import Image from "next/image"
 import { v4 as uuidv4 } from "uuid"
 import { MultiSelect } from "@/components/ui/multi-select"
+import { uploadToS3 } from "@/lib/s3-upload"
 
 interface ProductFormProps {
   productId?: string
@@ -45,7 +46,7 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
     image: "",
     price: "",
     stock: "",
-    rating: "0",
+    rating: "0", // This will be managed by users, not admins
     date: new Date().toISOString(),
     categoryId: "",
     tagIds: [] as string[],
@@ -151,24 +152,15 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
     setFormData((prev) => ({ ...prev, tagIds: selectedTags }))
   }
 
-  const convertToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = (error) => reject(error)
-      reader.readAsDataURL(file)
-    })
-  }
-
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Check file size - limit to 800KB to stay under Firestore's 1MB limit after base64 conversion
-    if (file.size > 800 * 1024) {
+    // Check file size - limit to 5MB
+    if (file.size > 5 * 1024 * 1024) {
       toast({
         title: "Image too large",
-        description: "Please select an image smaller than 800KB",
+        description: "Please select an image smaller than 5MB",
         variant: "destructive",
       })
       return
@@ -189,15 +181,22 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
     setLoading(true)
 
     try {
-      // Convert image to base64 if there's a new one
-      let imageBase64 = formData.image
+      // Upload image to S3 if there's a new one
+      let imageUrl = formData.image
       if (imageFile) {
         setImageUploading(true)
         try {
-          imageBase64 = await convertToBase64(imageFile)
+          imageUrl = await uploadToS3(imageFile)
         } catch (error) {
-          console.error("Error converting image to base64:", error)
-          throw new Error("Failed to convert image")
+          console.error("Error uploading image to S3:", error)
+          toast({
+            title: "Image upload failed",
+            description: "Failed to upload image. Please try again.",
+            variant: "destructive",
+          })
+          setLoading(false)
+          setImageUploading(false)
+          return
         } finally {
           setImageUploading(false)
         }
@@ -205,7 +204,7 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
 
       const productData = {
         ...formData,
-        image: imageBase64,
+        image: imageUrl,
         date: formData.date || new Date().toISOString(),
       }
 
@@ -296,6 +295,9 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
                     </>
                   )}
                 </Button>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Image will be uploaded to S3 and a CDN URL will be saved
+                </p>
               </div>
             </div>
           </div>
@@ -331,7 +333,10 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="grid gap-3">
-              <Label htmlFor="rating">Rating (0-5)</Label>
+              <Label htmlFor="rating" className="flex items-center gap-2">
+                Rating (0-5)
+                <span className="text-xs text-muted-foreground">(Managed by users)</span>
+              </Label>
               <Input
                 id="rating"
                 name="rating"
@@ -341,6 +346,8 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
                 step="0.1"
                 value={formData.rating}
                 onChange={handleInputChange}
+                disabled
+                className="bg-muted cursor-not-allowed"
               />
             </div>
 
