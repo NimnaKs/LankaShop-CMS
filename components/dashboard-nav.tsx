@@ -1,10 +1,18 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { FolderTree, Home, MapPin, Package, ShoppingCart, Tag, Users } from "lucide-react"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  FolderTree,
+  Home,
+  MapPin,
+  Package,
+  ShoppingCart,
+  Tag,
+  Users,
+} from "lucide-react";
 
 const navItems = [
   {
@@ -33,19 +41,14 @@ const navItems = [
     icon: Users,
   },
   {
-    title: "Addresses",
-    href: "/dashboard/addresses",
-    icon: MapPin,
-  },
-  {
     title: "Orders",
     href: "/dashboard/orders",
     icon: ShoppingCart,
   },
-]
+];
 
 export function DashboardNav() {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   return (
     <nav className="grid gap-1 p-4 md:w-64 md:border-r md:px-6 md:py-6">
@@ -53,7 +56,10 @@ export function DashboardNav() {
         <Button
           key={item.href}
           variant={pathname === item.href ? "secondary" : "ghost"}
-          className={cn("justify-start gap-2", pathname === item.href && "bg-secondary")}
+          className={cn(
+            "justify-start gap-2",
+            pathname === item.href && "bg-secondary"
+          )}
           asChild
         >
           <Link href={item.href}>
@@ -63,5 +69,5 @@ export function DashboardNav() {
         </Button>
       ))}
     </nav>
-  )
+  );
 }
