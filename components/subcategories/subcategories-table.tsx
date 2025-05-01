@@ -1,14 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  collection,
-  getDocs,
-  deleteDoc,
-  doc,
-  query,
-  where,
-} from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,17 +37,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-interface Category {
+interface SubCategory {
   id: string;
   name: string;
-  image: string;
-  description: string;
-  productCount?: number;
+  categoryId: string;
+  parentName?: string;
 }
 
-export function CategoriesTable() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [filtered, setFiltered] = useState<Category[]>([]);
+export function SubCategoriesTable() {
+  const [subcats, setSubcats] = useState<SubCategory[]>([]);
+  const [filtered, setFiltered] = useState<SubCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [toDelete, setToDelete] = useState<string | null>(null);
@@ -63,26 +55,30 @@ export function CategoriesTable() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [catsSnap, prodsSnap] = await Promise.all([
+        const [subSnap, catSnap] = await Promise.all([
+          getDocs(collection(db, "subcategories")),
           getDocs(collection(db, "categories")),
-          getDocs(collection(db, "products")),
         ]);
-        const counts: Record<string, number> = {};
-        prodsSnap.forEach((d) => {
-          const cid = d.data().categoryId as string;
-          if (cid) counts[cid] = (counts[cid] || 0) + 1;
+        const catsMap: Record<string, string> = {};
+        catSnap.docs.forEach((doc) => {
+          const d = doc.data();
+          catsMap[doc.id] = d.name;
         });
-        const cats = catsSnap.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as any),
-          productCount: counts[d.id] || 0,
-        }));
-        setCategories(cats);
-        setFiltered(cats);
-      } catch {
+        const subs: SubCategory[] = subSnap.docs.map((doc) => {
+          const d = doc.data() as any;
+          return {
+            id: doc.id,
+            name: d.name,
+            categoryId: d.categoryId,
+            parentName: catsMap[d.categoryId] || "",
+          };
+        });
+        setSubcats(subs);
+        setFiltered(subs);
+      } catch (err) {
         toast({
           title: "Error",
-          description: "Failed to load categories",
+          description: "Failed to load subcategories",
           variant: "destructive",
         });
       } finally {
@@ -95,30 +91,20 @@ export function CategoriesTable() {
   useEffect(() => {
     setFiltered(
       search
-        ? categories.filter((c) =>
-            c.name.toLowerCase().includes(search.toLowerCase())
+        ? subcats.filter((s) =>
+            s.name.toLowerCase().includes(search.toLowerCase())
           )
-        : categories
+        : subcats
     );
-  }, [search, categories]);
+  }, [search, subcats]);
 
   async function confirmDelete() {
     if (!toDelete) return;
-    const cat = categories.find((c) => c.id === toDelete);
-    if (cat?.productCount! > 0) {
-      toast({
-        title: "Cannot delete",
-        description: `Category has ${cat?.productCount} products. Remove them first.`,
-        variant: "destructive",
-      });
-      setToDelete(null);
-      return;
-    }
     try {
-      await deleteDoc(doc(db, "categories", toDelete));
-      setCategories((prev) => prev.filter((c) => c.id !== toDelete));
-      setFiltered((prev) => prev.filter((c) => c.id !== toDelete));
-      toast({ title: "Deleted", description: "Category removed" });
+      await deleteDoc(doc(db, "subcategories", toDelete));
+      setSubcats((prev) => prev.filter((s) => s.id !== toDelete));
+      setFiltered((prev) => prev.filter((s) => s.id !== toDelete));
+      toast({ title: "Deleted", description: "Subcategory removed" });
     } catch {
       toast({
         title: "Error",
@@ -144,7 +130,7 @@ export function CategoriesTable() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search categories..."
+            placeholder="Search subcategories..."
             className="pl-8"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -154,49 +140,36 @@ export function CategoriesTable() {
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-10 text-center">
-          <p className="text-muted-foreground mb-4">No categories found</p>
+          <p className="text-muted-foreground mb-4">No subcategories found</p>
         </div>
       ) : (
         <Card>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Image</TableHead>
                 <TableHead>Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Products</TableHead>
+                <TableHead>Category</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((cat) => (
-                <TableRow key={cat.id}>
-                  <TableCell>
-                    {cat.image ? (
-                      <img
-                        src={cat.image}
-                        alt={cat.name}
-                        className="h-10 w-10 object-cover rounded"
-                      />
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                  <TableCell>{cat.name}</TableCell>
-                  <TableCell>{cat.description}</TableCell>
-                  <TableCell>{cat.productCount}</TableCell>
+              {filtered.map((sub) => (
+                <TableRow key={sub.id}>
+                  <TableCell>{sub.name}</TableCell>
+                  <TableCell>{sub.parentName}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
                           <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Open menu</span>
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/categories/edit/${cat.id}`}>
+                          <Link
+                            href={`/dashboard/subcategories/edit/${sub.id}`}
+                          >
                             <Edit className="mr-2 h-4 w-4" />
                             Edit
                           </Link>
@@ -204,7 +177,7 @@ export function CategoriesTable() {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive"
-                          onClick={() => setToDelete(cat.id)}
+                          onClick={() => setToDelete(sub.id)}
                         >
                           <Trash className="mr-2 h-4 w-4" />
                           Delete
@@ -224,14 +197,14 @@ export function CategoriesTable() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Delete</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the category.
+              This will permanently delete the subcategory.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground"
               onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground"
             >
               Delete
             </AlertDialogAction>

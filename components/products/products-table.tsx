@@ -50,6 +50,8 @@ interface Product {
   date: string;
   categoryId: string;
   categoryName?: string;
+  subcategoryId?: string;
+  subcategoryName?: string;
 }
 
 export function ProductsTable() {
@@ -65,11 +67,20 @@ export function ProductsTable() {
       try {
         const productsSnapshot = await getDocs(collection(db, "products"));
         const categoriesSnapshot = await getDocs(collection(db, "categories"));
+        const subcategoriesSnapshot = await getDocs(
+          collection(db, "subcategories")
+        );
 
         // Create a map of category IDs to names
         const categoriesMap = new Map();
         categoriesSnapshot.forEach((doc) => {
           categoriesMap.set(doc.id, doc.data().name);
+        });
+
+        // Create a map of subcategory IDs to names
+        const subcategoriesMap = new Map();
+        subcategoriesSnapshot.forEach((doc) => {
+          subcategoriesMap.set(doc.id, doc.data().name);
         });
 
         const productsData = productsSnapshot.docs.map((doc) => {
@@ -79,6 +90,9 @@ export function ProductsTable() {
             ...data,
             categoryName: data.categoryId
               ? categoriesMap.get(data.categoryId)
+              : "Uncategorized",
+            subcategoryName: data.subcategoryId
+              ? subcategoriesMap.get(data.subcategoryId)
               : "Uncategorized",
           };
         });
@@ -184,6 +198,7 @@ export function ProductsTable() {
                 <TableHead className="w-[80px]">Image</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
+                <TableHead>Sub Category</TableHead>
                 <TableHead>Price</TableHead>
                 <TableHead>Stock</TableHead>
                 <TableHead>Rating</TableHead>
@@ -212,6 +227,15 @@ export function ProductsTable() {
                   <TableCell>
                     {product.categoryName ? (
                       <Badge variant="outline">{product.categoryName}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        Uncategorized
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {product.categoryName ? (
+                      <Badge variant="outline">{product.subcategoryName}</Badge>
                     ) : (
                       <span className="text-muted-foreground">
                         Uncategorized
