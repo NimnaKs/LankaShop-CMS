@@ -23,10 +23,13 @@ export function CategoryForm({ categoryId }: CategoryFormProps = {}) {
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [heroFile, setHeroFile] = useState<File | null>(null);
+  const [heroPreview, setHeroPreview] = useState<string | null>(null);
   const [imageUploading, setImageUploading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     image: "",
+    heroImage: "",
     description: "",
   });
   const [isEdit, setIsEdit] = useState(false);
@@ -35,87 +38,80 @@ export function CategoryForm({ categoryId }: CategoryFormProps = {}) {
 
   useEffect(() => {
     async function loadCategory() {
-      if (!categoryId) {
-        setIsEdit(false);
-        return;
-      }
+      if (!categoryId) return;
       setIsEdit(true);
       setLoading(true);
-
       try {
         const snap = await getDoc(doc(db, "categories", categoryId));
-        if (snap.exists()) {
-          const data = snap.data();
-          setFormData({
-            name: data.name || "",
-            image: data.image || "",
-            description: data.description || "",
-          });
-          if (data.image) setImagePreview(data.image);
-        } else {
-          toast({
-            title: "Not found",
-            description: "Category does not exist",
-            variant: "destructive",
-          });
-          router.push("/dashboard/categories");
-        }
+        if (!snap.exists()) throw new Error("Not found");
+        const data = snap.data() as any;
+        setFormData({
+          name: data.name || "",
+          image: data.image || "",
+          heroImage: data.heroImage || "",
+          description: data.description || "",
+        });
+        if (data.image) setImagePreview(data.image);
+        if (data.heroImage) setHeroPreview(data.heroImage);
       } catch (err) {
-        console.error(err);
         toast({
           title: "Error",
-          description: "Load failed",
+          description: "Failed to load",
           variant: "destructive",
         });
+        router.push("/dashboard/categories");
       } finally {
         setLoading(false);
       }
     }
     loadCategory();
-  }, [categoryId, router, toast]);
+  }, [categoryId]);
 
-  const handleInputChange = (
+  const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    isHero = false
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setImageUploading(true);
-    try {
-      const url = await uploadToS3(file);
-      setFormData((prev) => ({ ...prev, image: url }));
-      setImagePreview(url);
-      toast({ title: "Uploaded", description: "Image uploaded to S3" });
-    } catch {
-      toast({
-        title: "Upload error",
-        description: "Image upload failed",
-        variant: "destructive",
-      });
-    } finally {
-      setImageUploading(false);
-    }
+    const reader = new FileReader();
+    reader.onloadend = () =>
+      isHero
+        ? setHeroPreview(reader.result as string)
+        : setImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
+    if (isHero) setHeroFile(file);
+    else setImageFile(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
+      let imgUrl = formData.image;
+      let heroUrl = formData.heroImage;
+      setImageUploading(true);
+      if (imageFile) imgUrl = await uploadToS3(imageFile);
+      if (heroFile) heroUrl = await uploadToS3(heroFile);
+      setImageUploading(false);
+
+      const payload = { ...formData, image: imgUrl, heroImage: heroUrl };
       if (isEdit && categoryId) {
-        await updateDoc(doc(db, "categories", categoryId), formData);
+        await updateDoc(doc(db, "categories", categoryId), payload);
         toast({ title: "Updated", description: "Category updated" });
       } else {
         const id = uuidv4();
-        await setDoc(doc(db, "categories", id), formData);
+        await setDoc(doc(db, "categories", id), payload);
         toast({ title: "Created", description: "Category created" });
       }
       router.push("/dashboard/categories");
     } catch (err) {
-      console.error(err);
       toast({
         title: "Error",
         description: "Save failed",
@@ -126,13 +122,7 @@ export function CategoryForm({ categoryId }: CategoryFormProps = {}) {
     }
   };
 
-  if (loading && isEdit) {
-    return (
-      <div className="flex justify-center py-10">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  if (loading && isEdit) return <Loader2 className="animate-spin mt-10" />;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -144,55 +134,68 @@ export function CategoryForm({ categoryId }: CategoryFormProps = {}) {
               id="name"
               name="name"
               value={formData.name}
-              onChange={handleInputChange}
+              onChange={handleChange}
               required
             />
           </div>
 
           <div className="grid gap-3">
-            <Label htmlFor="file">Image</Label>
+            <Label>Hero Image</Label>
+            <div className="flex items-center gap-4">
+              {heroPreview && (
+                <Image
+                  src={heroPreview}
+                  alt="Hero preview"
+                  width={120}
+                  height={80}
+                  className="object-cover rounded"
+                />
+              )}
+              <Input
+                type="file"
+                className="hidden"
+                id="heroFile"
+                accept="image/*"
+                onChange={(e) => handleFile(e, true)}
+              />
+              <Button
+                variant="outline"
+                onClick={() => document.getElementById("heroFile")?.click()}
+                disabled={imageUploading}
+              >
+                <Upload className="mr-2" />{" "}
+                {formData.heroImage ? "Change Hero" : "Upload Hero"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-3">
+            <Label>Thumbnail Image</Label>
             <div className="flex items-center gap-4">
               {imagePreview && (
-                <div className="relative h-20 w-20 overflow-hidden rounded-md border">
-                  <Image
-                    src={imagePreview}
-                    alt="preview"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-              )}
-              <div className="flex-1">
-                <Input
-                  id="file"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
+                <Image
+                  src={imagePreview}
+                  alt="Thumb preview"
+                  width={80}
+                  height={80}
+                  className="object-cover rounded"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => document.getElementById("file")?.click()}
-                  disabled={imageUploading}
-                  className="w-full"
-                >
-                  {imageUploading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="mr-2 h-4 w-4" />
-                      {formData.image ? "Change Image" : "Upload Image"}
-                    </>
-                  )}
-                </Button>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Image will be stored in S3
-                </p>
-              </div>
+              )}
+              <Input
+                type="file"
+                className="hidden"
+                id="thumbFile"
+                accept="image/*"
+                onChange={(e) => handleFile(e, false)}
+              />
+              <Button
+                variant="outline"
+                onClick={() => document.getElementById("thumbFile")?.click()}
+                disabled={imageUploading}
+              >
+                <Upload className="mr-2" />{" "}
+                {formData.image ? "Change Image" : "Upload Image"}
+              </Button>
             </div>
           </div>
 
@@ -202,32 +205,21 @@ export function CategoryForm({ categoryId }: CategoryFormProps = {}) {
               id="description"
               name="description"
               value={formData.description}
-              onChange={handleInputChange}
+              onChange={handleChange}
               rows={4}
               required
             />
           </div>
         </CardContent>
-
         <CardFooter className="flex justify-between">
           <Button
-            type="button"
             variant="outline"
             onClick={() => router.push("/dashboard/categories")}
           >
             Cancel
           </Button>
           <Button type="submit" disabled={loading || imageUploading}>
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : isEdit ? (
-              "Update Category"
-            ) : (
-              "Create Category"
-            )}
+            {loading ? "Saving..." : isEdit ? "Update" : "Create"}
           </Button>
         </CardFooter>
       </Card>
