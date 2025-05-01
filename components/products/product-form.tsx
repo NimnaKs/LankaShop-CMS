@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2, Upload, X } from "lucide-react";
 import Image from "next/image";
 import { v4 as uuidv4 } from "uuid";
 import { MultiSelect } from "@/components/ui/multi-select";
@@ -69,6 +69,7 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
     categoryId: "",
     subcategoryId: "",
     tagIds: [] as string[],
+    productDetails: [] as string[],
   });
   const [isEdit, setIsEdit] = useState(false);
   const router = useRouter();
@@ -121,11 +122,10 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
           categoryId: data.categoryId || "",
           subcategoryId: data.subcategoryId || "",
           tagIds: data.tagIds || [],
+          productDetails: data.productDetails || [],
         });
         if (data.image) setImagePreview(data.image);
-        if (data.categoryId) {
-          await fetchSubcategories(data.categoryId);
-        }
+        if (data.categoryId) await fetchSubcategories(data.categoryId);
       } catch (error) {
         console.error(error);
         toast({
@@ -164,6 +164,24 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
     const reader = new FileReader();
     reader.onloadend = () => setImagePreview(reader.result as string);
     reader.readAsDataURL(file);
+  };
+
+  const handleAddDetail = () => {
+    setFormData((prev) => ({
+      ...prev,
+      productDetails: [...prev.productDetails, ""],
+    }));
+  };
+
+  const handleDetailChange = (index: number, value: string) => {
+    const details = [...formData.productDetails];
+    details[index] = value;
+    setFormData((prev) => ({ ...prev, productDetails: details }));
+  };
+
+  const handleRemoveDetail = (index: number) => {
+    const details = formData.productDetails.filter((_, i) => i !== index);
+    setFormData((prev) => ({ ...prev, productDetails: details }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -210,6 +228,7 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
     <form onSubmit={handleSubmit} className="space-y-6">
       <Card>
         <CardContent className="grid gap-6 pt-6">
+          {/* Name */}
           <div className="grid gap-3">
             <Label htmlFor="name">Product Name</Label>
             <Input
@@ -221,6 +240,7 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
             />
           </div>
 
+          {/* Description */}
           <div className="grid gap-3">
             <Label htmlFor="description">Description</Label>
             <Textarea
@@ -232,6 +252,7 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
             />
           </div>
 
+          {/* Image Upload */}
           <div className="grid gap-3">
             <Label htmlFor="image">Product Image</Label>
             <div className="flex items-center gap-4">
@@ -279,6 +300,7 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
             </div>
           </div>
 
+          {/* Price & Stock */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="grid gap-3">
               <Label htmlFor="price">Price (£)</Label>
@@ -307,6 +329,7 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
             </div>
           </div>
 
+          {/* Category & Subcategory */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="grid gap-3">
               <Label htmlFor="category">Category</Label>
@@ -330,8 +353,8 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
               <Label htmlFor="subcategory">Sub Category</Label>
               <Select
                 value={formData.subcategoryId}
-                onValueChange={(value) =>
-                  setFormData((prev) => ({ ...prev, subcategoryId: value }))
+                onValueChange={(val) =>
+                  setFormData((prev) => ({ ...prev, subcategoryId: val }))
                 }
               >
                 <SelectTrigger>
@@ -348,16 +371,46 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
             </div>
           </div>
 
-          <div className="grid gap-3">
-            <Label htmlFor="tags">Tags</Label>
-            <MultiSelect
-              options={tags.map((tag) => ({ label: tag.name, value: tag.id }))}
-              selected={formData.tagIds}
-              onChange={(values) =>
-                setFormData((prev) => ({ ...prev, tagIds: values }))
-              }
-              placeholder="Select tags"
-            />
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {/* Tags */}
+            <div className="grid gap-3">
+              <Label htmlFor="tags">Tags</Label>
+              <MultiSelect
+                options={tags.map((tag) => ({
+                  label: tag.name,
+                  value: tag.id,
+                }))}
+                selected={formData.tagIds}
+                onChange={handleTagsChange}
+                placeholder="Select tags"
+              />
+            </div>
+
+            {/* Product Details Array */}
+            <div className="grid gap-3">
+              <Label>Product Details</Label>
+              {formData.productDetails.map((detail, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <Input
+                    value={detail}
+                    onChange={(e) => handleDetailChange(idx, e.target.value)}
+                    placeholder={`Detail ${idx + 1}`}
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemoveDetail(idx)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button type="button" onClick={handleAddDetail} className="mt-2">
+                + Add Detail
+              </Button>
+            </div>
           </div>
         </CardContent>
         <CardFooter className="flex justify-between">
@@ -369,16 +422,11 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
             Cancel
           </Button>
           <Button type="submit" disabled={loading || imageUploading}>
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : isEdit ? (
-              "Update Product"
-            ) : (
-              "Create Product"
-            )}
+            {loading
+              ? "Saving..."
+              : isEdit
+              ? "Update Product"
+              : "Create Product"}
           </Button>
         </CardFooter>
       </Card>
