@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
+  Folder,
   FolderTree,
   Home,
   MapPin,
@@ -28,6 +29,11 @@ const navItems = [
   {
     title: "Categories",
     href: "/dashboard/categories",
+    icon: Folder,
+  },
+  {
+    title: "Sub Categories",
+    href: "/dashboard/subcategories",
     icon: FolderTree,
   },
   {
