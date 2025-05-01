@@ -1,11 +1,18 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { collection, getDocs, deleteDoc, doc } from "firebase/firestore"
-import { db } from "@/lib/firebase"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useState, useEffect } from "react";
+import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,14 +20,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { useToast } from "@/components/ui/use-toast"
-import { Edit, MoreHorizontal, Search, Trash, Plus } from "lucide-react"
-import Image from "next/image"
-import Link from "next/link"
-import { Loader2 } from "lucide-react"
+} from "@/components/ui/dropdown-menu";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/use-toast";
+import { Edit, MoreHorizontal, Search, Trash, Plus } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { Loader2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,105 +37,115 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 
 interface Product {
-  id: string
-  name: string
-  description: string
-  image: string
-  price: string
-  stock: string
-  rating: string
-  date: string
-  categoryId: string
-  categoryName?: string
+  id: string;
+  name: string;
+  description: string;
+  image: string;
+  price: string;
+  stock: string;
+  rating: string;
+  date: string;
+  categoryId: string;
+  categoryName?: string;
 }
 
 export function ProductsTable() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [deleteProductId, setDeleteProductId] = useState<string | null>(null)
-  const { toast } = useToast()
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const productsSnapshot = await getDocs(collection(db, "products"))
-        const categoriesSnapshot = await getDocs(collection(db, "categories"))
+        const productsSnapshot = await getDocs(collection(db, "products"));
+        const categoriesSnapshot = await getDocs(collection(db, "categories"));
 
         // Create a map of category IDs to names
-        const categoriesMap = new Map()
+        const categoriesMap = new Map();
         categoriesSnapshot.forEach((doc) => {
-          categoriesMap.set(doc.id, doc.data().name)
-        })
+          categoriesMap.set(doc.id, doc.data().name);
+        });
 
         const productsData = productsSnapshot.docs.map((doc) => {
-          const data = doc.data() as Product
+          const data = doc.data() as Product;
           return {
             id: doc.id,
             ...data,
-            categoryName: data.categoryId ? categoriesMap.get(data.categoryId) : "Uncategorized",
-          }
-        })
+            categoryName: data.categoryId
+              ? categoriesMap.get(data.categoryId)
+              : "Uncategorized",
+          };
+        });
 
-        setProducts(productsData)
-        setFilteredProducts(productsData)
+        setProducts(productsData);
+        setFilteredProducts(productsData);
       } catch (error) {
-        console.error("Error fetching products:", error)
+        console.error("Error fetching products:", error);
         toast({
           title: "Error",
           description: "Failed to load products",
           variant: "destructive",
-        })
+        });
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchProducts()
-  }, [toast])
+    fetchProducts();
+  }, [toast]);
 
   useEffect(() => {
     if (searchQuery) {
       const filtered = products.filter(
         (product) =>
           product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          product.categoryName?.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-      setFilteredProducts(filtered)
+          product.description
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          product.categoryName
+            ?.toLowerCase()
+            .includes(searchQuery.toLowerCase())
+      );
+      setFilteredProducts(filtered);
     } else {
-      setFilteredProducts(products)
+      setFilteredProducts(products);
     }
-  }, [searchQuery, products])
+  }, [searchQuery, products]);
 
   const handleDeleteProduct = async () => {
-    if (!deleteProductId) return
+    if (!deleteProductId) return;
 
     try {
-      await deleteDoc(doc(db, "products", deleteProductId))
+      await deleteDoc(doc(db, "products", deleteProductId));
 
-      setProducts((prev) => prev.filter((product) => product.id !== deleteProductId))
-      setFilteredProducts((prev) => prev.filter((product) => product.id !== deleteProductId))
+      setProducts((prev) =>
+        prev.filter((product) => product.id !== deleteProductId)
+      );
+      setFilteredProducts((prev) =>
+        prev.filter((product) => product.id !== deleteProductId)
+      );
 
       toast({
         title: "Product deleted",
         description: "The product has been deleted successfully",
-      })
+      });
     } catch (error) {
-      console.error("Error deleting product:", error)
+      console.error("Error deleting product:", error);
       toast({
         title: "Error",
         description: "Failed to delete product",
         variant: "destructive",
-      })
+      });
     } finally {
-      setDeleteProductId(null)
+      setDeleteProductId(null);
     }
-  }
+  };
 
   return (
     <>
@@ -196,13 +213,23 @@ export function ProductsTable() {
                     {product.categoryName ? (
                       <Badge variant="outline">{product.categoryName}</Badge>
                     ) : (
-                      <span className="text-muted-foreground">Uncategorized</span>
+                      <span className="text-muted-foreground">
+                        Uncategorized
+                      </span>
                     )}
                   </TableCell>
-                  <TableCell>${product.price}</TableCell>
+                  <TableCell>£{product.price}</TableCell>
                   <TableCell>
-                    <Badge variant={Number.parseInt(product.stock) > 0 ? "outline" : "destructive"}>
-                      {Number.parseInt(product.stock) > 0 ? `${product.stock} in stock` : "Out of stock"}
+                    <Badge
+                      variant={
+                        Number.parseInt(product.stock) > 0
+                          ? "outline"
+                          : "destructive"
+                      }
+                    >
+                      {Number.parseInt(product.stock) > 0
+                        ? `${product.stock} in stock`
+                        : "Out of stock"}
                     </Badge>
                   </TableCell>
                   <TableCell>{product.rating}/5</TableCell>
@@ -240,22 +267,29 @@ export function ProductsTable() {
         )}
       </Card>
 
-      <AlertDialog open={!!deleteProductId} onOpenChange={() => setDeleteProductId(null)}>
+      <AlertDialog
+        open={!!deleteProductId}
+        onOpenChange={() => setDeleteProductId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the product from your store.
+              This action cannot be undone. This will permanently delete the
+              product from your store.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteProduct} className="bg-destructive text-destructive-foreground">
+            <AlertDialogAction
+              onClick={handleDeleteProduct}
+              className="bg-destructive text-destructive-foreground"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
-  )
+  );
 }

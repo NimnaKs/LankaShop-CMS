@@ -1,70 +1,79 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { collection, getDocs, query, orderBy } from "firebase/firestore"
-import { db } from "@/lib/firebase"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useState, useEffect } from "react";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { useToast } from "@/components/ui/use-toast"
-import { Eye, MoreHorizontal, Search } from "lucide-react"
-import Link from "next/link"
-import { Loader2 } from "lucide-react"
-import { formatDate } from "@/lib/utils"
+} from "@/components/ui/dropdown-menu";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/use-toast";
+import { Eye, MoreHorizontal, Search } from "lucide-react";
+import Link from "next/link";
+import { Loader2 } from "lucide-react";
+import { formatDate } from "@/lib/utils";
 
 interface Order {
-  id: string
-  orderId: string
-  userId: string
-  createdAt: string
-  totalAmount: string
-  paymentStatus: string
-  paymentProvider: string
-  stripeSessionId?: string
+  id: string;
+  orderId: string;
+  userId: string;
+  createdAt: string;
+  totalAmount: string;
+  paymentStatus: string;
+  paymentProvider: string;
+  stripeSessionId?: string;
 }
 
 export function OrdersTable() {
-  const [orders, setOrders] = useState<Order[]>([])
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
-  const { toast } = useToast()
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const ordersSnapshot = await getDocs(query(collection(db, "orders"), orderBy("createdAt", "desc")))
+        const ordersSnapshot = await getDocs(
+          query(collection(db, "orders"), orderBy("createdAt", "desc"))
+        );
 
         const ordersData = ordersSnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
-        })) as Order[]
+        })) as Order[];
 
-        setOrders(ordersData)
-        setFilteredOrders(ordersData)
+        setOrders(ordersData);
+        setFilteredOrders(ordersData);
       } catch (error) {
-        console.error("Error fetching orders:", error)
+        console.error("Error fetching orders:", error);
         toast({
           title: "Error",
           description: "Failed to load orders",
           variant: "destructive",
-        })
+        });
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchOrders()
-  }, [toast])
+    fetchOrders();
+  }, [toast]);
 
   useEffect(() => {
     if (searchQuery) {
@@ -72,13 +81,13 @@ export function OrdersTable() {
         (order) =>
           order.orderId.toLowerCase().includes(searchQuery.toLowerCase()) ||
           order.userId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          order.paymentStatus.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-      setFilteredOrders(filtered)
+          order.paymentStatus.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredOrders(filtered);
     } else {
-      setFilteredOrders(orders)
+      setFilteredOrders(orders);
     }
-  }, [searchQuery, orders])
+  }, [searchQuery, orders]);
 
   return (
     <>
@@ -109,7 +118,6 @@ export function OrdersTable() {
             <TableHeader>
               <TableRow>
                 <TableHead>Order ID</TableHead>
-                <TableHead>Customer</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Payment Status</TableHead>
@@ -121,17 +129,16 @@ export function OrdersTable() {
               {filteredOrders.map((order) => (
                 <TableRow key={order.id}>
                   <TableCell className="font-medium">{order.orderId}</TableCell>
-                  <TableCell>{order.userId}</TableCell>
                   <TableCell>{formatDate(order.createdAt)}</TableCell>
-                  <TableCell>${order.totalAmount}</TableCell>
+                  <TableCell>£{order.totalAmount}</TableCell>
                   <TableCell>
                     <Badge
                       variant={
                         order.paymentStatus === "paid"
                           ? "success"
                           : order.paymentStatus === "pending"
-                            ? "warning"
-                            : "destructive"
+                          ? "warning"
+                          : "destructive"
                       }
                     >
                       {order.paymentStatus}
@@ -164,5 +171,5 @@ export function OrdersTable() {
         )}
       </Card>
     </>
-  )
+  );
 }

@@ -1,45 +1,58 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/firestore"
-import { db } from "@/lib/firebase"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Upload } from "lucide-react"
-import Image from "next/image"
-import { v4 as uuidv4 } from "uuid"
-import { MultiSelect } from "@/components/ui/multi-select"
-import { uploadToS3 } from "@/lib/s3-upload"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/components/ui/use-toast";
+import { Loader2, Upload } from "lucide-react";
+import Image from "next/image";
+import { v4 as uuidv4 } from "uuid";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { uploadToS3 } from "@/lib/s3-upload";
 
 interface ProductFormProps {
-  productId?: string
+  productId?: string;
 }
 
 interface Category {
-  id: string
-  name: string
+  id: string;
+  name: string;
 }
 
 interface Tag {
-  id: string
-  name: string
+  id: string;
+  name: string;
 }
 
 export function ProductForm({ productId }: ProductFormProps = {}) {
-  const [loading, setLoading] = useState(false)
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [imageUploading, setImageUploading] = useState(false)
-  const [categories, setCategories] = useState<Category[]>([])
-  const [tags, setTags] = useState<Tag[]>([])
+  const [loading, setLoading] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -50,57 +63,57 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
     date: new Date().toISOString(),
     categoryId: "",
     tagIds: [] as string[],
-  })
-  const [isEdit, setIsEdit] = useState(false)
-  const router = useRouter()
-  const { toast } = useToast()
+  });
+  const [isEdit, setIsEdit] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const categoriesSnapshot = await getDocs(collection(db, "categories"))
+        const categoriesSnapshot = await getDocs(collection(db, "categories"));
         const categoriesData = categoriesSnapshot.docs.map((doc) => ({
           id: doc.id,
           name: doc.data().name,
-        }))
-        setCategories(categoriesData)
+        }));
+        setCategories(categoriesData);
       } catch (error) {
-        console.error("Error fetching categories:", error)
+        console.error("Error fetching categories:", error);
       }
-    }
+    };
 
     const fetchTags = async () => {
       try {
-        const tagsSnapshot = await getDocs(collection(db, "tags"))
+        const tagsSnapshot = await getDocs(collection(db, "tags"));
         const tagsData = tagsSnapshot.docs.map((doc) => ({
           id: doc.id,
           name: doc.data().name,
-        }))
-        setTags(tagsData)
+        }));
+        setTags(tagsData);
       } catch (error) {
-        console.error("Error fetching tags:", error)
+        console.error("Error fetching tags:", error);
       }
-    }
+    };
 
-    fetchCategories()
-    fetchTags()
-  }, [])
+    fetchCategories();
+    fetchTags();
+  }, []);
 
   useEffect(() => {
     const fetchProduct = async () => {
       if (!productId) {
-        setIsEdit(false)
-        return
+        setIsEdit(false);
+        return;
       }
 
-      setIsEdit(true)
-      setLoading(true)
+      setIsEdit(true);
+      setLoading(true);
 
       try {
-        const productDoc = await getDoc(doc(db, "products", productId))
+        const productDoc = await getDoc(doc(db, "products", productId));
 
         if (productDoc.exists()) {
-          const productData = productDoc.data()
+          const productData = productDoc.data();
           setFormData({
             name: productData.name || "",
             description: productData.description || "",
@@ -111,84 +124,86 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
             date: productData.date || new Date().toISOString(),
             categoryId: productData.categoryId || "",
             tagIds: productData.tagIds || [],
-          })
+          });
 
           if (productData.image) {
-            setImagePreview(productData.image)
+            setImagePreview(productData.image);
           }
         } else {
           toast({
             title: "Product not found",
             description: "The product you're trying to edit doesn't exist",
             variant: "destructive",
-          })
-          router.push("/dashboard/products")
+          });
+          router.push("/dashboard/products");
         }
       } catch (error) {
-        console.error("Error fetching product:", error)
+        console.error("Error fetching product:", error);
         toast({
           title: "Error",
           description: "Failed to load product data",
           variant: "destructive",
-        })
+        });
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchProduct()
-  }, [productId, router, toast])
+    fetchProduct();
+  }, [productId, router, toast]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handleTagsChange = (selectedTags: string[]) => {
-    setFormData((prev) => ({ ...prev, tagIds: selectedTags }))
-  }
+    setFormData((prev) => ({ ...prev, tagIds: selectedTags }));
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    setImageFile(file)
+    setImageFile(file);
 
     // Create a preview
-    const reader = new FileReader()
+    const reader = new FileReader();
     reader.onloadend = () => {
-      setImagePreview(reader.result as string)
-    }
-    reader.readAsDataURL(file)
-  }
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
 
     try {
       // Upload image to S3 if there's a new one
-      let imageUrl = formData.image
+      let imageUrl = formData.image;
       if (imageFile) {
-        setImageUploading(true)
+        setImageUploading(true);
         try {
-          imageUrl = await uploadToS3(imageFile)
+          imageUrl = await uploadToS3(imageFile);
         } catch (error) {
-          console.error("Error uploading image to S3:", error)
+          console.error("Error uploading image to S3:", error);
           toast({
             title: "Image upload failed",
             description: "Failed to upload image. Please try again.",
             variant: "destructive",
-          })
-          setLoading(false)
-          setImageUploading(false)
-          return
+          });
+          setLoading(false);
+          setImageUploading(false);
+          return;
         } finally {
-          setImageUploading(false)
+          setImageUploading(false);
         }
       }
 
@@ -196,44 +211,44 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
         ...formData,
         image: imageUrl,
         date: formData.date || new Date().toISOString(),
-      }
+      };
 
       if (isEdit && productId) {
         // Update existing product
-        await updateDoc(doc(db, "products", productId), productData)
+        await updateDoc(doc(db, "products", productId), productData);
         toast({
           title: "Product updated",
           description: "The product has been updated successfully",
-        })
+        });
       } else {
         // Create new product with a generated ID
-        const newProductId = uuidv4()
-        await setDoc(doc(db, "products", newProductId), productData)
+        const newProductId = uuidv4();
+        await setDoc(doc(db, "products", newProductId), productData);
         toast({
           title: "Product created",
           description: "The product has been created successfully",
-        })
+        });
       }
 
-      router.push("/dashboard/products")
+      router.push("/dashboard/products");
     } catch (error) {
-      console.error("Error saving product:", error)
+      console.error("Error saving product:", error);
       toast({
         title: "Error",
         description: "Failed to save product",
         variant: "destructive",
-      })
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   if (loading && isEdit) {
     return (
       <div className="flex justify-center py-10">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
-    )
+    );
   }
 
   return (
@@ -242,7 +257,13 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
         <CardContent className="grid gap-6 pt-6">
           <div className="grid gap-3">
             <Label htmlFor="name">Product Name</Label>
-            <Input id="name" name="name" value={formData.name} onChange={handleInputChange} required />
+            <Input
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              required
+            />
           </div>
 
           <div className="grid gap-3">
@@ -261,11 +282,22 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
             <div className="flex items-center gap-4">
               {(imagePreview || formData.image) && (
                 <div className="relative h-20 w-20 overflow-hidden rounded-md border">
-                  <Image src={imagePreview || formData.image} alt="Product preview" fill className="object-cover" />
+                  <Image
+                    src={imagePreview || formData.image}
+                    alt="Product preview"
+                    fill
+                    className="object-cover"
+                  />
                 </div>
               )}
               <div className="flex-1">
-                <Input id="image" type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                <Input
+                  id="image"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
                 <Button
                   type="button"
                   variant="outline"
@@ -294,7 +326,7 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="grid gap-3">
-              <Label htmlFor="price">Price ($)</Label>
+              <Label htmlFor="price">Price (£)</Label>
               <Input
                 id="price"
                 name="price"
@@ -325,7 +357,9 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
             <div className="grid gap-3">
               <Label htmlFor="rating" className="flex items-center gap-2">
                 Rating (0-5)
-                <span className="text-xs text-muted-foreground">(Managed by users)</span>
+                <span className="text-xs text-muted-foreground">
+                  (Managed by users)
+                </span>
               </Label>
               <Input
                 id="rating"
@@ -343,7 +377,12 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
 
             <div className="grid gap-3">
               <Label htmlFor="category">Category</Label>
-              <Select value={formData.categoryId} onValueChange={(value) => handleSelectChange("categoryId", value)}>
+              <Select
+                value={formData.categoryId}
+                onValueChange={(value) =>
+                  handleSelectChange("categoryId", value)
+                }
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
@@ -371,7 +410,11 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
         </CardContent>
 
         <CardFooter className="flex justify-between">
-          <Button type="button" variant="outline" onClick={() => router.push("/dashboard/products")}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push("/dashboard/products")}
+          >
             Cancel
           </Button>
           <Button type="submit" disabled={loading || imageUploading}>
@@ -389,5 +432,5 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
         </CardFooter>
       </Card>
     </form>
-  )
+  );
 }

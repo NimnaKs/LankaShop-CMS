@@ -1,116 +1,134 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore"
-import { db } from "@/lib/firebase"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { useToast } from "@/components/ui/use-toast"
-import { ArrowLeft, Loader2 } from "lucide-react"
-import { formatDate } from "@/lib/utils"
-import Link from "next/link"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-
-interface CustomerDetailsProps {
-  customerId: string
-}
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/use-toast";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import Link from "next/link";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { formatDate } from "@/lib/utils";
 
 interface Customer {
-  id: string
-  userId: string
-  createdAt: string
-  billingAddressId?: string
-  shippingAddressId?: string
+  id: string;
+  name: string;
+  email: string;
+  createdAt: string;
+  status: "active" | "deactive" | "suspend";
 }
 
 interface Address {
-  id: string
-  userId: string
-  label: string
-  street: string
-  city: string
-  state: string
-  postalCode: string
-  country: string
+  id: string;
+  label: string;
+  street: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
 }
 
 interface Order {
-  id: string
-  orderId: string
-  createdAt: string
-  totalAmount: string
-  paymentStatus: string
+  id: string;
+  orderId: string;
+  createdAt: string;
+  totalAmount: string;
+  paymentStatus: string;
 }
 
-export function CustomerDetails({ customerId }: CustomerDetailsProps) {
-  const [customer, setCustomer] = useState<Customer | null>(null)
-  const [addresses, setAddresses] = useState<Address[]>([])
-  const [orders, setOrders] = useState<Order[]>([])
-  const [loading, setLoading] = useState(true)
-  const router = useRouter()
-  const { toast } = useToast()
+export function CustomerDetails({ customerId }: { customerId: string }) {
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
-    const fetchCustomerDetails = async () => {
+    const fetchDetails = async () => {
       try {
-        const customerDoc = await getDoc(doc(db, "customers", customerId))
-
-        if (!customerDoc.exists()) {
+        const docSnap = await getDoc(doc(db, "customers", customerId));
+        if (!docSnap.exists()) {
           toast({
-            title: "Customer not found",
-            description: "The customer you're looking for doesn't exist",
+            title: "Not found",
+            description: "Customer does not exist",
             variant: "destructive",
-          })
-          router.push("/dashboard/customers")
-          return
+          });
+          router.push("/dashboard/customers");
+          return;
         }
+        const d = docSnap.data();
+        setCustomer({
+          id: docSnap.id,
+          name: d.name,
+          email: d.email,
+          createdAt: d.createdAt,
+          status: d.status,
+        });
 
-        const customerData = { id: customerDoc.id, ...customerDoc.data() } as Customer
-        setCustomer(customerData)
+        // fetch addresses
+        const addrQ = query(
+          collection(db, "addresses"),
+          where("userId", "==", d.userId)
+        );
+        const addrSnap = await getDocs(addrQ);
+        setAddresses(
+          addrSnap.docs.map((a) => ({ id: a.id, ...(a.data() as any) }))
+        );
 
-        // Fetch customer addresses
-        const addressesQuery = query(collection(db, "addresses"), where("userId", "==", customerData.userId))
-        const addressesSnapshot = await getDocs(addressesQuery)
-        const addressesData = addressesSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Address[]
-        setAddresses(addressesData)
-
-        // Fetch customer orders
-        const ordersQuery = query(collection(db, "orders"), where("userId", "==", customerData.userId))
-        const ordersSnapshot = await getDocs(ordersQuery)
-        const ordersData = ordersSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Order[]
-        setOrders(ordersData)
-      } catch (error) {
-        console.error("Error fetching customer details:", error)
+        // fetch orders
+        const ordQ = query(
+          collection(db, "orders"),
+          where("userId", "==", d.userId)
+        );
+        const ordSnap = await getDocs(ordQ);
+        setOrders(
+          ordSnap.docs.map((o) => ({ id: o.id, ...(o.data() as any) }))
+        );
+      } catch (err) {
+        console.error(err);
         toast({
           title: "Error",
-          description: "Failed to load customer details",
+          description: "Failed to load details",
           variant: "destructive",
-        })
+        });
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
+    fetchDetails();
+  }, [customerId, router, toast]);
 
-    fetchCustomerDetails()
-  }, [customerId, router, toast])
-
-  if (loading) {
+  if (loading)
     return (
       <div className="flex justify-center py-10">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
-    )
-  }
-
-  if (!customer) {
+    );
+  if (!customer)
     return (
       <div className="flex flex-col items-center justify-center py-10 text-center">
         <p className="text-muted-foreground mb-4">Customer not found</p>
@@ -121,8 +139,14 @@ export function CustomerDetails({ customerId }: CustomerDetailsProps) {
           </Link>
         </Button>
       </div>
-    )
-  }
+    );
+
+  // compute totals
+  const totalSpent = orders.reduce(
+    (sum, o) => sum + parseFloat(o.totalAmount),
+    0
+  );
+  const orderCount = orders.length;
 
   return (
     <div className="space-y-6">
@@ -136,17 +160,37 @@ export function CustomerDetails({ customerId }: CustomerDetailsProps) {
       <Card>
         <CardHeader>
           <CardTitle>Customer Information</CardTitle>
-          <CardDescription>Customer ID: {customer.userId}</CardDescription>
+          <CardDescription>
+            Status: <Badge className="capitalize">{customer.status}</Badge>
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Customer Since</p>
+              <p className="text-sm font-medium text-muted-foreground">Name</p>
+              <p>{customer.name}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Email</p>
+              <p>{customer.email}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Joined
+              </p>
               <p>{formatDate(customer.createdAt)}</p>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Orders</p>
-              <p>{orders.length}</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Total Orders
+              </p>
+              <p>{orderCount}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Total Spent
+              </p>
+              <p>${totalSpent.toFixed(2)}</p>
             </div>
           </div>
         </CardContent>
@@ -155,33 +199,21 @@ export function CustomerDetails({ customerId }: CustomerDetailsProps) {
       {addresses.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Customer Addresses</CardTitle>
+            <CardTitle>Addresses</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2">
-              {addresses.map((address) => (
-                <Card key={address.id}>
+              {addresses.map((a) => (
+                <Card key={a.id}>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base">
-                      <Badge variant="outline" className="mr-2">
-                        {address.label}
-                      </Badge>
-                      {address.id === customer.billingAddressId && (
-                        <Badge variant="secondary" className="mr-1">
-                          Billing
-                        </Badge>
-                      )}
-                      {address.id === customer.shippingAddressId && <Badge variant="secondary">Shipping</Badge>}
-                    </CardTitle>
+                    <CardTitle className="text-base">{a.label}</CardTitle>
                   </CardHeader>
                   <CardContent className="text-sm">
-                    <div className="space-y-1">
-                      <p>{address.street}</p>
-                      <p>
-                        {address.city}, {address.state} {address.postalCode}
-                      </p>
-                      <p>{address.country}</p>
-                    </div>
+                    <p>{a.street}</p>
+                    <p>
+                      {a.city}, {a.state} {a.postalCode}
+                    </p>
+                    <p>{a.country}</p>
                   </CardContent>
                 </Card>
               ))}
@@ -193,11 +225,13 @@ export function CustomerDetails({ customerId }: CustomerDetailsProps) {
       <Card>
         <CardHeader>
           <CardTitle>Order History</CardTitle>
-          <CardDescription>{orders.length} orders placed by this customer</CardDescription>
+          <CardDescription>{orderCount} orders placed</CardDescription>
         </CardHeader>
         <CardContent>
-          {orders.length === 0 ? (
-            <p className="text-center py-6 text-muted-foreground">No orders found for this customer</p>
+          {orderCount === 0 ? (
+            <p className="text-center py-6 text-muted-foreground">
+              No orders found
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -210,27 +244,29 @@ export function CustomerDetails({ customerId }: CustomerDetailsProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {orders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-medium">{order.orderId}</TableCell>
-                    <TableCell>{formatDate(order.createdAt)}</TableCell>
-                    <TableCell>${order.totalAmount}</TableCell>
+                {orders.map((o) => (
+                  <TableRow key={o.id}>
+                    <TableCell className="font-medium">{o.orderId}</TableCell>
+                    <TableCell>{formatDate(o.createdAt)}</TableCell>
+                    <TableCell>
+                      ${parseFloat(o.totalAmount).toFixed(2)}
+                    </TableCell>
                     <TableCell>
                       <Badge
                         variant={
-                          order.paymentStatus === "paid"
+                          o.paymentStatus === "paid"
                             ? "success"
-                            : order.paymentStatus === "pending"
-                              ? "warning"
-                              : "destructive"
+                            : o.paymentStatus === "pending"
+                            ? "warning"
+                            : "destructive"
                         }
                       >
-                        {order.paymentStatus}
+                        {o.paymentStatus}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <Button asChild variant="ghost" size="sm">
-                        <Link href={`/dashboard/orders/${order.id}`}>View</Link>
+                        <Link href={`/dashboard/orders/${o.id}`}>View</Link>
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -241,5 +277,5 @@ export function CustomerDetails({ customerId }: CustomerDetailsProps) {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
