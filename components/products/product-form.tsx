@@ -1,16 +1,16 @@
 "use client";
 
-import type React from "react";
-
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   collection,
   doc,
   getDoc,
   getDocs,
+  query,
   setDoc,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -20,13 +20,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
+  SelectTrigger,
   SelectContent,
   SelectItem,
-  SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2, Upload, X } from "lucide-react";
 import Image from "next/image";
 import { v4 as uuidv4 } from "uuid";
 import { MultiSelect } from "@/components/ui/multi-select";
@@ -40,7 +40,10 @@ interface Category {
   id: string;
   name: string;
 }
-
+interface SubCategory {
+  id: string;
+  name: string;
+}
 interface Tag {
   id: string;
   name: string;
@@ -52,104 +55,90 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageUploading, setImageUploading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<SubCategory[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     image: "",
     price: "",
     stock: "",
-    rating: "0", // This will be managed by users, not admins
+    rating: "0",
     date: new Date().toISOString(),
     categoryId: "",
+    subcategoryId: "",
     tagIds: [] as string[],
+    productDetails: [] as string[],
   });
   const [isEdit, setIsEdit] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
+  // Load categories and tags
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const categoriesSnapshot = await getDocs(collection(db, "categories"));
-        const categoriesData = categoriesSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          name: doc.data().name,
-        }));
-        setCategories(categoriesData);
-      } catch (error) {
-        console.error("Error fetching categories:", error);
-      }
-    };
-
-    const fetchTags = async () => {
-      try {
-        const tagsSnapshot = await getDocs(collection(db, "tags"));
-        const tagsData = tagsSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          name: doc.data().name,
-        }));
-        setTags(tagsData);
-      } catch (error) {
-        console.error("Error fetching tags:", error);
-      }
-    };
-
-    fetchCategories();
-    fetchTags();
+    async function loadLookups() {
+      const [catSnap, tagSnap] = await Promise.all([
+        getDocs(collection(db, "categories")),
+        getDocs(collection(db, "tags")),
+      ]);
+      setCategories(
+        catSnap.docs.map((d) => ({ id: d.id, name: d.data().name }))
+      );
+      setTags(tagSnap.docs.map((d) => ({ id: d.id, name: d.data().name })));
+    }
+    loadLookups();
   }, []);
 
-  useEffect(() => {
-    const fetchProduct = async () => {
-      if (!productId) {
-        setIsEdit(false);
-        return;
-      }
+  // Fetch subcategories when category changes
+  const fetchSubcategories = async (categoryId: string) => {
+    if (!categoryId) return setSubcategories([]);
+    const q = query(
+      collection(db, "subcategories"),
+      where("categoryId", "==", categoryId)
+    );
+    const snap = await getDocs(q);
+    setSubcategories(snap.docs.map((d) => ({ id: d.id, name: d.data().name })));
+  };
 
+  // Load existing product for edit
+  useEffect(() => {
+    async function loadProduct() {
+      if (!productId) return;
       setIsEdit(true);
       setLoading(true);
-
       try {
-        const productDoc = await getDoc(doc(db, "products", productId));
-
-        if (productDoc.exists()) {
-          const productData = productDoc.data();
-          setFormData({
-            name: productData.name || "",
-            description: productData.description || "",
-            image: productData.image || "",
-            price: productData.price || "",
-            stock: productData.stock || "",
-            rating: productData.rating || "0",
-            date: productData.date || new Date().toISOString(),
-            categoryId: productData.categoryId || "",
-            tagIds: productData.tagIds || [],
-          });
-
-          if (productData.image) {
-            setImagePreview(productData.image);
-          }
-        } else {
-          toast({
-            title: "Product not found",
-            description: "The product you're trying to edit doesn't exist",
-            variant: "destructive",
-          });
-          router.push("/dashboard/products");
-        }
+        const snap = await getDoc(doc(db, "products", productId));
+        if (!snap.exists()) throw new Error("Not found");
+        const data = snap.data() as any;
+        setFormData({
+          name: data.name || "",
+          description: data.description || "",
+          image: data.image || "",
+          price: data.price || "",
+          stock: data.stock || "",
+          rating: data.rating || "0",
+          date: data.date || new Date().toISOString(),
+          categoryId: data.categoryId || "",
+          subcategoryId: data.subcategoryId || "",
+          tagIds: data.tagIds || [],
+          productDetails: data.productDetails || [],
+        });
+        if (data.image) setImagePreview(data.image);
+        if (data.categoryId) await fetchSubcategories(data.categoryId);
       } catch (error) {
-        console.error("Error fetching product:", error);
+        console.error(error);
         toast({
           title: "Error",
-          description: "Failed to load product data",
+          description: "Failed to load product",
           variant: "destructive",
         });
+        router.push("/dashboard/products");
       } finally {
         setLoading(false);
       }
-    };
-
-    fetchProduct();
+    }
+    loadProduct();
   }, [productId, router, toast]);
 
   const handleInputChange = (
@@ -159,80 +148,64 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const handleCategoryChange = async (value: string) => {
+    setFormData((prev) => ({ ...prev, categoryId: value, subcategoryId: "" }));
+    await fetchSubcategories(value);
   };
 
-  const handleTagsChange = (selectedTags: string[]) => {
-    setFormData((prev) => ({ ...prev, tagIds: selectedTags }));
+  const handleTagsChange = (values: string[]) => {
+    setFormData((prev) => ({ ...prev, tagIds: values }));
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setImageFile(file);
-
-    // Create a preview
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-    };
+    reader.onloadend = () => setImagePreview(reader.result as string);
     reader.readAsDataURL(file);
+  };
+
+  const handleAddDetail = () => {
+    setFormData((prev) => ({
+      ...prev,
+      productDetails: [...prev.productDetails, ""],
+    }));
+  };
+
+  const handleDetailChange = (index: number, value: string) => {
+    const details = [...formData.productDetails];
+    details[index] = value;
+    setFormData((prev) => ({ ...prev, productDetails: details }));
+  };
+
+  const handleRemoveDetail = (index: number) => {
+    const details = formData.productDetails.filter((_, i) => i !== index);
+    setFormData((prev) => ({ ...prev, productDetails: details }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
-      // Upload image to S3 if there's a new one
       let imageUrl = formData.image;
       if (imageFile) {
         setImageUploading(true);
-        try {
-          imageUrl = await uploadToS3(imageFile);
-        } catch (error) {
-          console.error("Error uploading image to S3:", error);
-          toast({
-            title: "Image upload failed",
-            description: "Failed to upload image. Please try again.",
-            variant: "destructive",
-          });
-          setLoading(false);
-          setImageUploading(false);
-          return;
-        } finally {
-          setImageUploading(false);
-        }
+        imageUrl = await uploadToS3(imageFile);
+        setImageUploading(false);
       }
-
-      const productData = {
-        ...formData,
-        image: imageUrl,
-        date: formData.date || new Date().toISOString(),
-      };
-
+      const payload = { ...formData, image: imageUrl };
       if (isEdit && productId) {
-        // Update existing product
-        await updateDoc(doc(db, "products", productId), productData);
-        toast({
-          title: "Product updated",
-          description: "The product has been updated successfully",
-        });
+        await updateDoc(doc(db, "products", productId), payload);
+        toast({ title: "Updated", description: "Product updated" });
       } else {
-        // Create new product with a generated ID
-        const newProductId = uuidv4();
-        await setDoc(doc(db, "products", newProductId), productData);
-        toast({
-          title: "Product created",
-          description: "The product has been created successfully",
-        });
+        const id = uuidv4();
+        await setDoc(doc(db, "products", id), payload);
+        toast({ title: "Created", description: "Product created" });
       }
-
       router.push("/dashboard/products");
     } catch (error) {
-      console.error("Error saving product:", error);
+      console.error(error);
       toast({
         title: "Error",
         description: "Failed to save product",
@@ -252,9 +225,10 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className="space-y-6">
       <Card>
         <CardContent className="grid gap-6 pt-6">
+          {/* Name */}
           <div className="grid gap-3">
             <Label htmlFor="name">Product Name</Label>
             <Input
@@ -266,6 +240,7 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
             />
           </div>
 
+          {/* Description */}
           <div className="grid gap-3">
             <Label htmlFor="description">Description</Label>
             <Textarea
@@ -277,14 +252,15 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
             />
           </div>
 
+          {/* Image Upload */}
           <div className="grid gap-3">
             <Label htmlFor="image">Product Image</Label>
             <div className="flex items-center gap-4">
-              {(imagePreview || formData.image) && (
+              {imagePreview && (
                 <div className="relative h-20 w-20 overflow-hidden rounded-md border">
                   <Image
-                    src={imagePreview || formData.image}
-                    alt="Product preview"
+                    src={imagePreview}
+                    alt="preview"
                     fill
                     className="object-cover"
                   />
@@ -295,8 +271,8 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
                   id="image"
                   type="file"
                   accept="image/*"
-                  onChange={handleImageChange}
                   className="hidden"
+                  onChange={handleImageChange}
                 />
                 <Button
                   type="button"
@@ -318,12 +294,13 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
                   )}
                 </Button>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Image will be uploaded to S3 without size constraints
+                  Image will be uploaded to S3
                 </p>
               </div>
             </div>
           </div>
 
+          {/* Price & Stock */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="grid gap-3">
               <Label htmlFor="price">Price (£)</Label>
@@ -338,7 +315,6 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
                 required
               />
             </div>
-
             <div className="grid gap-3">
               <Label htmlFor="stock">Stock</Label>
               <Input
@@ -353,44 +329,41 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
             </div>
           </div>
 
+          {/* Category & Subcategory */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div className="grid gap-3">
-              <Label htmlFor="rating" className="flex items-center gap-2">
-                Rating (0-5)
-                <span className="text-xs text-muted-foreground">
-                  (Managed by users)
-                </span>
-              </Label>
-              <Input
-                id="rating"
-                name="rating"
-                type="number"
-                min="0"
-                max="5"
-                step="0.1"
-                value={formData.rating}
-                onChange={handleInputChange}
-                disabled
-                className="bg-muted cursor-not-allowed"
-              />
-            </div>
-
             <div className="grid gap-3">
               <Label htmlFor="category">Category</Label>
               <Select
                 value={formData.categoryId}
-                onValueChange={(value) =>
-                  handleSelectChange("categoryId", value)
-                }
+                onValueChange={handleCategoryChange}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-3">
+              <Label htmlFor="subcategory">Sub Category</Label>
+              <Select
+                value={formData.subcategoryId}
+                onValueChange={(val) =>
+                  setFormData((prev) => ({ ...prev, subcategoryId: val }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a subcategory" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subcategories.map((sub) => (
+                    <SelectItem key={sub.id} value={sub.id}>
+                      {sub.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -398,17 +371,48 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
             </div>
           </div>
 
-          <div className="grid gap-3">
-            <Label htmlFor="tags">Tags</Label>
-            <MultiSelect
-              options={tags.map((tag) => ({ label: tag.name, value: tag.id }))}
-              selected={formData.tagIds}
-              onChange={handleTagsChange}
-              placeholder="Select tags"
-            />
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {/* Tags */}
+            <div className="grid gap-3">
+              <Label htmlFor="tags">Tags</Label>
+              <MultiSelect
+                options={tags.map((tag) => ({
+                  label: tag.name,
+                  value: tag.id,
+                }))}
+                selected={formData.tagIds}
+                onChange={handleTagsChange}
+                placeholder="Select tags"
+              />
+            </div>
+
+            {/* Product Details Array */}
+            <div className="grid gap-3">
+              <Label>Product Details</Label>
+              {formData.productDetails.map((detail, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <Input
+                    value={detail}
+                    onChange={(e) => handleDetailChange(idx, e.target.value)}
+                    placeholder={`Detail ${idx + 1}`}
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemoveDetail(idx)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button type="button" onClick={handleAddDetail} className="mt-2">
+                + Add Detail
+              </Button>
+            </div>
           </div>
         </CardContent>
-
         <CardFooter className="flex justify-between">
           <Button
             type="button"
@@ -418,16 +422,11 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
             Cancel
           </Button>
           <Button type="submit" disabled={loading || imageUploading}>
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : isEdit ? (
-              "Update Product"
-            ) : (
-              "Create Product"
-            )}
+            {loading
+              ? "Saving..."
+              : isEdit
+              ? "Update Product"
+              : "Create Product"}
           </Button>
         </CardFooter>
       </Card>
