@@ -13,9 +13,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { LogOut, Menu, Package, User } from "lucide-react"
+import { LogOut, Menu, User } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { DashboardNav } from "@/components/dashboard-nav"
+import Image from "next/image";
 
 export function DashboardHeader() {
   const { user } = useAuth()
@@ -38,8 +39,7 @@ export function DashboardHeader() {
         </SheetContent>
       </Sheet>
       <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-        <Package className="h-6 w-6" />
-        <span>LankaShop Admin Panel</span>
+          <Image src="https://ls-bucket12345.s3.us-east-1.amazonaws.com/lankaShop.jpeg" alt="Description of the image" width={50} height={50} loading="lazy"></Image>
       </Link>
       <div className="ml-auto flex items-center gap-2">
         {user && (
