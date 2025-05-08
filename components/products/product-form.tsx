@@ -58,6 +58,8 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
     subcategoryId: "",
     tagIds: [] as string[],
     productDetails: [] as string[],
+    weight: "",
+    weightUnit: "g",
   })
   const [isEdit, setIsEdit] = useState(false)
   const router = useRouter()
@@ -108,6 +110,8 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
           subcategoryId: data.subcategoryId || "",
           tagIds: data.tagIds || [],
           productDetails: data.productDetails || [],
+          weight: data.weight || "",
+          weightUnit: data.weightUnit || "g",
         })
         if (data.image) {
           setImagePreviews((prev) => {
@@ -361,7 +365,7 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
                                   })
                                   setFormData((prev) => ({
                                     ...prev,
-                                    [`image${index + 1}`]: "",
+                                    [`image${index === 0 ? "" : index + 1}`]: "",
                                   }))
                                 }}
                             >
@@ -392,8 +396,8 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
               )}
             </div>
 
-            {/* Price & Stock */}
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {/* Price, Stock & Weight */}
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               <div className="grid gap-3">
                 <Label htmlFor="price">Price (£)</Label>
                 <Input
@@ -418,6 +422,35 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
                     onChange={handleInputChange}
                     required
                 />
+              </div>
+              <div className="grid gap-3">
+                <Label htmlFor="weight">Weight</Label>
+                <div className="flex gap-2">
+                  <Input
+                      id="weight"
+                      name="weight"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.weight}
+                      onChange={handleInputChange}
+                      className="flex-1"
+                      placeholder="0.00"
+                  />
+                  <Select
+                      value={formData.weightUnit}
+                      onValueChange={(value) => setFormData((prev) => ({ ...prev, weightUnit: value }))}
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue placeholder="Unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mg">mg</SelectItem>
+                      <SelectItem value="g">g</SelectItem>
+                      <SelectItem value="kg">kg</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 
