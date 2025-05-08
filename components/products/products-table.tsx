@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
-import { Edit, Search, Trash, Plus, ImageIcon, ChevronLeft, ChevronRight } from "lucide-react"
+import { Edit, Search, Trash, Plus, ImageIcon, ChevronLeft, ChevronRight, Scale } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { Loader2 } from "lucide-react"
@@ -38,6 +38,8 @@ interface Product {
   categoryName?: string
   subcategoryId?: string
   subcategoryName?: string
+  weight?: string
+  weightUnit?: string
 }
 
 export function ProductsTable() {
@@ -149,6 +151,12 @@ export function ProductsTable() {
     if (product.image2) images.push(product.image2)
     if (product.image3) images.push(product.image3)
     return images
+  }
+
+  // Format weight with unit
+  const formatWeight = (weight?: string, unit?: string) => {
+    if (!weight) return "N/A"
+    return `${weight} ${unit || "g"}`
   }
 
   // Navigate to next image
@@ -285,13 +293,26 @@ export function ProductsTable() {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between">
-                          <Badge variant={Number.parseInt(product.stock) > 0 ? "outline" : "destructive"}>
-                            {Number.parseInt(product.stock) > 0 ? `${product.stock} in stock` : "Out of stock"}
-                          </Badge>
-                          <div className="flex items-center">
-                            <span className="text-sm font-medium mr-1">{product.rating}/5</span>
-                            <span className="text-yellow-500">★</span>
+                        <div className="grid grid-cols-3 gap-2 mb-3">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Stock</p>
+                            <Badge variant={Number.parseInt(product.stock) > 0 ? "outline" : "destructive"} className="mt-1">
+                              {Number.parseInt(product.stock) > 0 ? `${product.stock} in stock` : "Out of stock"}
+                            </Badge>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Rating</p>
+                            <div className="flex items-center mt-1">
+                              <span className="text-sm font-medium mr-1">{product.rating}/5</span>
+                              <span className="text-yellow-500">★</span>
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Weight</p>
+                            <div className="flex items-center mt-1">
+                              <Scale className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                              <span className="text-sm">{formatWeight(product.weight, product.weightUnit)}</span>
+                            </div>
                           </div>
                         </div>
                       </CardContent>
