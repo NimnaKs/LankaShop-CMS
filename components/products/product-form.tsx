@@ -448,6 +448,9 @@ export function ProductForm({ productId }: ProductFormProps = {}) {
                       <SelectItem value="mg">mg</SelectItem>
                       <SelectItem value="g">g</SelectItem>
                       <SelectItem value="kg">kg</SelectItem>
+                      <SelectItem value="mm">mm</SelectItem>
+                      <SelectItem value="ml">ml</SelectItem>
+                      <SelectItem value="l">l</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
