@@ -24,7 +24,6 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import { formatDate } from "@/lib/utils";
 import Link from "next/link";
 import {
   Table,
@@ -175,7 +174,7 @@ export function OrderDetails({ orderId }: OrderDetailsProps) {
           <CardHeader>
             <CardTitle>Order Information</CardTitle>
             <CardDescription>
-              Order #{order.orderId} – {formatDate(order.createdAt)}
+              Order #{order.orderId}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

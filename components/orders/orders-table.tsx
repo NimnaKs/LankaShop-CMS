@@ -26,7 +26,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { Eye, MoreHorizontal, Search } from "lucide-react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
-import { formatDate } from "@/lib/utils";
 
 interface Order {
   id: string;
@@ -129,7 +128,6 @@ export function OrdersTable() {
               {filteredOrders.map((order) => (
                 <TableRow key={order.id}>
                   <TableCell className="font-medium">{order.orderId}</TableCell>
-                  <TableCell>{formatDate(order.createdAt)}</TableCell>
                   <TableCell>£{order.totalAmount}</TableCell>
                   <TableCell>
                     <Badge
